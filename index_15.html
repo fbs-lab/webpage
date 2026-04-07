@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FBS Lab — Folding, Binding &amp; Stability</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy-900:#0a0f2e;--navy-800:#0d1640;--navy-700:#112058;--navy-600:#1a3278;
+      --navy-500:#1e4096;--navy-400:#2a5abf;--navy-300:#5580d4;--navy-200:#a8bcec;
+      --navy-100:#dce6f8;--navy-50:#f0f4fd;--white:#ffffff;--off-white:#f8f9fc;
+      --text-body:#2c3a5e;--text-muted:#7a8db5;--accent:#c8a96e;--radius:4px;
+      --transition:0.28s cubic-bezier(.4,0,.2,1);
+      --font-display:'Cormorant Garamond',Georgia,serif;
+      --font-body:'DM Sans',system-ui,sans-serif;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{font-family:var(--font-body);color:var(--text-body);background:var(--white);overflow-x:hidden;line-height:1.65}
+    img{display:block;max-width:100%}
+    a{text-decoration:none;color:inherit}
+    /* ── NAV ── */
+    nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 48px;height:68px;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--navy-100);transition:box-shadow var(--transition)}
+    nav.scrolled{box-shadow:0 2px 24px rgba(10,15,46,.10)}
+    .nav-logo{font-family:var(--font-display);font-size:1.5rem;font-weight:600;color:var(--navy-800);letter-spacing:.02em;cursor:pointer}
+    .nav-logo span{color:var(--accent)}
+    .nav-links{display:flex;gap:0;list-style:none}
+    .nav-links a{display:block;padding:8px 13px;font-size:.78rem;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);transition:color var(--transition);position:relative;cursor:pointer}
+    .nav-links a::after{content:'';position:absolute;bottom:4px;left:13px;right:13px;height:2px;background:var(--navy-500);transform:scaleX(0);transform-origin:left;transition:transform var(--transition)}
+    .nav-links a:hover,.nav-links a.active{color:var(--navy-700)}
+    .nav-links a:hover::after,.nav-links a.active::after{transform:scaleX(1)}
+    .hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer}
+    .hamburger span{width:24px;height:2px;background:var(--navy-800);transition:var(--transition)}
+
+    /* ── PAGE SYSTEM: each section is a full page, hidden by default ── */
+    section{
+      display:none;
+      min-height:calc(100vh - 68px);
+      margin-top:68px;
+      padding-top:0;
+      padding-bottom:0;
+      overflow-y:auto;
+    }
+    section.page-active{display:block;}
+
+    /* Home is flex so it can center vertically */
+    #home{
+      display:none;
+      min-height:calc(100vh - 68px);
+      margin-top:68px;
+      flex-direction:column;
+      justify-content:center;
+      padding:0;
+      position:relative;
+      overflow:hidden;
+      background:var(--navy-900);
+    }
+    #home.page-active{display:flex;}
+
+    /* Inner padding for non-home sections */
+    section:not(#home) .container{padding-top:72px;padding-bottom:80px;}
+
+    .container{max-width:1120px;margin:0 auto;padding:0 32px}
+    .section-label{font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:500;margin-bottom:12px}
+    .section-title{font-family:var(--font-display);font-size:clamp(2rem,4vw,3rem);font-weight:300;color:var(--navy-800);line-height:1.2;margin-bottom:16px}
+    .section-subtitle{font-size:.95rem;color:var(--text-muted);max-width:560px;line-height:1.75}
+    .divider{width:40px;height:2px;background:var(--accent);margin:20px 0 40px}
+    /* #home display/layout handled in page system above */
+    .hero-bg{position:absolute;inset:0;opacity:.18;pointer-events:none}
+    .hero-inner{position:relative;z-index:2;max-width:1120px;margin:0 auto;padding:80px 32px;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
+    /* hero-kicker: always visible, wraps gracefully, never clips */
+    .hero-kicker{
+      display:flex;align-items:center;gap:10px;
+      font-size:.75rem;letter-spacing:.15em;text-transform:uppercase;
+      color:var(--accent);margin-bottom:28px;
+      white-space:normal;word-break:break-word;
+      max-width:100%;flex-wrap:wrap;
+    }
+    .hero-kicker::before{content:'';display:block;flex-shrink:0;width:32px;height:1px;background:var(--accent)}
+    .hero-h1{font-family:var(--font-display);font-size:clamp(2.8rem,5.5vw,4.8rem);font-weight:300;line-height:1.08;color:var(--white);margin-bottom:28px}
+    .hero-h1 em{font-style:italic;color:var(--navy-200)}
+    .hero-desc{font-size:.95rem;line-height:1.85;color:var(--navy-200);max-width:440px;margin-bottom:44px}
+    .hero-cta{display:inline-flex;gap:16px;flex-wrap:wrap}
+    .btn{display:inline-block;padding:13px 28px;font-size:.82rem;font-weight:500;letter-spacing:.06em;text-transform:uppercase;border-radius:var(--radius);transition:all var(--transition);cursor:pointer}
+    .btn-primary{background:var(--navy-400);color:var(--white);border:1px solid var(--navy-400)}
+    .btn-primary:hover{background:var(--navy-300);border-color:var(--navy-300)}
+    .btn-outline{background:transparent;color:var(--navy-200);border:1px solid rgba(255,255,255,.25)}
+    .btn-outline:hover{border-color:var(--navy-200);color:var(--white)}
+    .hero-visual{display:flex;align-items:center;justify-content:center}
+    /* ── Knot animation ── */
+    .knot-anim-wrap{display:flex;flex-direction:column;align-items:center;gap:24px;width:100%;max-width:420px}
+    #knotCanvas{width:100%;height:auto;max-width:420px;display:block;border-radius:50%;background:transparent}
+    .knot-label-row{display:flex;align-items:center;justify-content:space-between;width:100%;padding:0 4px}
+    .knot-dot-bar{display:flex;gap:10px;align-items:center}
+    .kdot{width:8px;height:8px;border-radius:50%;border:1.5px solid rgba(168,188,236,.5);background:transparent;cursor:pointer;padding:0;transition:all .3s ease}
+    .kdot.active{background:#a8bcec;border-color:#a8bcec;width:24px;border-radius:4px}
+    .kdot:hover{border-color:#a8bcec}
+    .knot-name-display{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+    .kname-sub{font-family:var(--font-display);font-size:1.1rem;font-weight:300;color:var(--accent);letter-spacing:.08em;line-height:1;transition:opacity .4s}
+    .kname-main{font-family:var(--font-display);font-size:.78rem;font-weight:300;letter-spacing:.16em;text-transform:uppercase;color:var(--navy-300);line-height:1;transition:opacity .4s}
+    .hero-stats{display:flex;gap:48px;margin-top:56px;padding-top:36px;border-top:1px solid rgba(255,255,255,.1)}
+    .stat-val{font-family:var(--font-display);font-size:2.2rem;font-weight:400;color:var(--white)}
+    .stat-val span{color:var(--accent);font-size:1.4rem}
+    .stat-label{font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--navy-300);margin-top:2px}
+    #research{background:var(--white)}
+    .research-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-top:48px}
+    .research-card{position:relative;background:var(--navy-50);padding:44px 36px;overflow:hidden;transition:background var(--transition);cursor:default}
+    .research-card::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--navy-400);transform:scaleY(0);transform-origin:top;transition:transform var(--transition)}
+    .research-card:hover{background:var(--navy-100)}
+    .research-card:hover::before{transform:scaleY(1)}
+    .research-card:hover .rc-icon{transform:scale(1.08) translateY(-2px)}
+    .rc-icon{width:64px;height:64px;margin-bottom:28px;transition:transform var(--transition)}
+    .rc-num{font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
+    .rc-title{font-family:var(--font-display);font-size:1.55rem;font-weight:400;color:var(--navy-800);margin-bottom:16px;line-height:1.3}
+    .rc-desc{font-size:.88rem;color:var(--text-muted);line-height:1.8}
+    #projects{background:var(--navy-900)}
+    #projects .section-title{color:var(--white)}
+    #projects .section-subtitle{color:var(--navy-200)}
+    .projects-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;margin-top:48px}
+    .project-card{background:var(--navy-800);border:1px solid rgba(255,255,255,.07);border-radius:var(--radius);padding:40px;transition:border-color var(--transition),transform var(--transition)}
+    .project-card:hover{border-color:var(--navy-400);transform:translateY(-4px)}
+    .project-tag{display:inline-block;padding:3px 10px;border-radius:2px;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;background:rgba(42,90,191,.25);color:var(--navy-200);margin-bottom:20px}
+    .project-title{font-family:var(--font-display);font-size:1.45rem;font-weight:400;color:var(--white);margin-bottom:14px;line-height:1.3}
+    .project-desc{font-size:.88rem;color:var(--navy-300);line-height:1.8;margin-bottom:28px}
+    .project-footer{display:flex;align-items:center;justify-content:space-between;font-size:.78rem;color:var(--navy-300);border-top:1px solid rgba(255,255,255,.07);padding-top:18px}
+    .project-link{color:var(--accent);font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;display:inline-flex;align-items:center;gap:6px;transition:gap var(--transition)}
+    .project-link:hover{gap:10px}
+    #group{background:var(--off-white)}
+    .group-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:48px}
+    .member-card{background:var(--white);border-radius:var(--radius);overflow:hidden;transition:box-shadow var(--transition),transform var(--transition)}
+    .member-card:hover{box-shadow:0 16px 48px rgba(10,15,46,.12);transform:translateY(-4px)}
+    .member-photo{width:100%;aspect-ratio:1;background:var(--navy-100);display:flex;align-items:center;justify-content:center;overflow:hidden}
+    .member-body{padding:22px 20px}
+    .member-name{font-family:var(--font-display);font-size:1.1rem;font-weight:600;color:var(--navy-800);margin-bottom:4px}
+    .member-role{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
+    .member-desc{font-size:.82rem;color:var(--text-muted);line-height:1.7}
+    #publications{background:var(--white)}
+    .pub-list{margin-top:40px;display:flex;flex-direction:column}
+    .pub-item{padding:28px 0;border-bottom:1px solid var(--navy-100);display:grid;grid-template-columns:64px 1fr auto;gap:24px;align-items:start}
+    .pub-item:first-child{border-top:1px solid var(--navy-100)}
+    .pub-year{font-family:var(--font-display);font-size:1rem;color:var(--accent);font-weight:400;padding-top:4px}
+    .pub-title{font-family:var(--font-display);font-size:1.15rem;font-weight:400;color:var(--navy-800);margin-bottom:6px;line-height:1.35}
+    .pub-authors{font-size:.82rem;color:var(--text-muted);margin-bottom:4px}
+    .pub-journal{font-size:.82rem;color:var(--navy-400);font-style:italic}
+    .pub-doi{display:inline-block;margin-top:8px;font-size:.75rem;letter-spacing:.06em;color:var(--accent);text-transform:uppercase}
+    .pub-badge{display:inline-block;padding:4px 10px;border:1px solid var(--navy-200);border-radius:2px;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--navy-500);white-space:nowrap;margin-top:4px}
+    #contact{background:var(--navy-50)}
+    .contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:64px;margin-top:48px}
+    .contact-block{margin-bottom:32px}
+    .contact-block-label{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+    .contact-block-val{font-size:.92rem;color:var(--text-body);line-height:1.75}
+    .map-placeholder{width:100%;height:360px;border-radius:var(--radius);overflow:hidden;background:var(--navy-100);border:1px solid var(--navy-200)}
+    .map-placeholder iframe{width:100%;height:100%;border:none}
+    #vacancies{background:var(--white)}
+    .vacancy-list{margin-top:40px;display:flex;flex-direction:column;gap:16px}
+    .vacancy-card{padding:32px 36px;border:1px solid var(--navy-100);border-radius:var(--radius);display:flex;align-items:center;justify-content:space-between;gap:24px;transition:border-color var(--transition),box-shadow var(--transition)}
+    .vacancy-card:hover{border-color:var(--navy-400);box-shadow:0 8px 32px rgba(10,15,46,.07)}
+    .vacancy-title{font-family:var(--font-display);font-size:1.2rem;font-weight:400;color:var(--navy-800);margin-bottom:6px}
+    .vacancy-meta{font-size:.82rem;color:var(--text-muted)}
+    .vacancy-tag{display:inline-block;padding:3px 10px;border-radius:2px;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;background:var(--navy-100);color:var(--navy-600);margin-top:8px}
+    .btn-navy{display:inline-block;padding:11px 22px;background:var(--navy-700);color:var(--white);border-radius:var(--radius);font-size:.78rem;font-weight:500;letter-spacing:.06em;text-transform:uppercase;transition:background var(--transition);white-space:nowrap;border:none;cursor:pointer}
+    .btn-navy:hover{background:var(--navy-500)}
+    footer{background:var(--navy-900);color:var(--navy-300);padding:48px 32px}
+    .footer-inner{max-width:1120px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:24px}
+    .footer-logo{font-family:var(--font-display);font-size:1.25rem;color:var(--white)}
+    .footer-logo span{color:var(--accent)}
+    .footer-copy{font-size:.8rem}
+    .reveal{opacity:0;transform:translateY(28px);transition:opacity .6s ease,transform .6s ease}
+    .reveal.visible{opacity:1;transform:translateY(0)}
+    .reveal-delay-1{transition-delay:.1s}
+    .reveal-delay-2{transition-delay:.2s}
+    .reveal-delay-3{transition-delay:.3s}
+    .reveal-delay-4{transition-delay:.4s}
+    @media(max-width:1024px){.group-grid{grid-template-columns:repeat(3,1fr)}.research-grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:768px){
+      nav{padding:0 24px}
+      .nav-links{display:none;flex-direction:column;position:fixed;top:68px;left:0;right:0;background:var(--white);padding:16px 24px 24px;border-bottom:1px solid var(--navy-100);gap:4px;z-index:99}
+      .nav-links.open{display:flex}
+      .hamburger{display:flex}
+      /* Hero: single column, visual hidden, kicker stays visible */
+      .hero-inner{grid-template-columns:1fr;padding:48px 24px 40px}
+      .hero-visual{display:none}
+      .hero-kicker{font-size:.72rem;letter-spacing:.12em}
+      .hero-h1{font-size:clamp(2rem,8vw,3.5rem)}
+      .hero-stats{gap:20px;flex-wrap:wrap}
+      /* Other grids */
+      .research-grid,.projects-grid,.contact-grid{grid-template-columns:1fr}
+      .group-grid{grid-template-columns:repeat(2,1fr)}
+      .pub-item{grid-template-columns:48px 1fr}
+      .pub-item>:last-child{grid-column:2}
+      .vacancy-card{flex-direction:column;align-items:flex-start}
+    }
+    @media(max-width:480px){
+      .group-grid{grid-template-columns:1fr 1fr}
+      .hero-stats{gap:16px;flex-wrap:wrap}
+      .hero-inner{padding:36px 20px 32px}
+    }
+  </style>
+</head>
+<body>
+
+<nav id="navbar">
+  <a class="nav-logo" onclick="showPage('home')">FBS<span>Lab</span></a>
+  <ul class="nav-links" id="navLinks">
+    <li><a data-target="home" class="active" onclick="showPage('home',this)">Home</a></li>
+    <li><a data-target="research" onclick="showPage('research',this)">Research</a></li>
+    <li><a data-target="projects" onclick="showPage('projects',this)">Projects</a></li>
+    <li><a data-target="group" onclick="showPage('group',this)">Group</a></li>
+    <li><a data-target="publications" onclick="showPage('publications',this)">Publications</a></li>
+    <li><a data-target="vacancies" onclick="showPage('vacancies',this)">Vacancies</a></li>
+    <li><a data-target="contact" onclick="showPage('contact',this)">Contact</a></li>
+  </ul>
+  <div class="hamburger" id="hamburger" onclick="toggleMenu()">
+    <span></span><span></span><span></span>
+  </div>
+</nav>
+
+<section id="home">
+  <svg class="hero-bg" viewBox="0 0 1440 900" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <radialGradient id="glow" cx="60%" cy="40%" r="50%">
+        <stop offset="0%" stop-color="#2a5abf" stop-opacity=".6"/>
+        <stop offset="100%" stop-color="#0a0f2e" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="1440" height="900" fill="url(#glow)"/>
+    <circle cx="800" cy="180" r="320" fill="none" stroke="#1a3278" stroke-width="1"/>
+    <circle cx="800" cy="180" r="200" fill="none" stroke="#1a3278" stroke-width="1"/>
+    <circle cx="800" cy="180" r="100" fill="none" stroke="#2a5abf" stroke-width="1" opacity=".6"/>
+    <circle cx="800" cy="180" r="480" fill="none" stroke="#112058" stroke-width="1" opacity=".4"/>
+  </svg>
+  <div class="hero-inner">
+    <div class="hero-text">
+      <div class="hero-kicker">Folding, Binding &amp; Stability</div>
+      <h1 class="hero-h1"><br><em>Molecular Knots</em><br>in Proteins</h1>
+      <p class="hero-desc">We study how proteins fold into knotted topologies, how the cell degrades them, and how misfolding leads to disease. Our work bridges computational modelling, biochemistry, and single-molecule experiments.</p>
+      <div class="hero-cta">
+        <a onclick="showPage('research')" class="btn btn-primary">Our Research</a>
+        <a onclick="showPage('publications')" class="btn btn-outline">Publications</a>
+      </div>
+      <div class="hero-stats">
+        <div><div class="stat-val">47<span>+</span></div><div class="stat-label">Publications</div></div>
+        <div><div class="stat-val">12</div><div class="stat-label">Lab Members</div></div>
+        <div><div class="stat-val">8</div><div class="stat-label">Active Projects</div></div>
+        <div><div class="stat-val">6<span>+</span></div><div class="stat-label">Countries</div></div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="knot-anim-wrap">
+        <canvas id="knotCanvas" width="420" height="420"></canvas>
+        <div class="knot-label-row">
+          <div class="knot-dot-bar" id="knotDotBar">
+            <button class="kdot active" data-idx="0" onclick="knotJumpTo(0)"></button>
+            <button class="kdot" data-idx="1" onclick="knotJumpTo(1)"></button>
+            <button class="kdot" data-idx="2" onclick="knotJumpTo(2)"></button>
+          </div>
+          <div class="knot-name-display">
+            <span id="knotNameSub" class="kname-sub"></span>
+            <span id="knotNameMain" class="kname-main"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="research">
+  <div class="container">
+    <p class="section-label reveal">Research Focus</p>
+    <h2 class="section-title reveal">Three Pillars of<br>Our Science</h2>
+    <div class="divider reveal"></div>
+    <p class="section-subtitle reveal">Our laboratory investigates the topology, stability, and cellular fate of proteins — from the moment a chain leaves the ribosome to its ultimate degradation.</p>
+    <div class="research-grid">
+      <div class="research-card reveal reveal-delay-1">
+        <svg class="rc-icon" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <defs><linearGradient id="rg3" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#2a5abf"/><stop offset="100%" stop-color="#a8bcec"/></linearGradient></defs>
+          <path d="M32 10C20 10,12 20,12 30C12 42,22 50,32 54C42 50,52 42,52 30C52 20,44 10,32 10Z" fill="none" stroke="url(#rg3)" stroke-width="2"/>
+          <path d="M22 18Q32 28,42 18" fill="none" stroke="#5580d4" stroke-width="1.5" opacity=".7"/>
+          <path d="M18 28Q32 38,46 28" fill="none" stroke="#5580d4" stroke-width="1.5" opacity=".5"/>
+          <circle cx="32" cy="48" r="5" fill="#2a5abf"/>
+        </svg>
+        <div class="rc-num">01 — Biophysics</div>
+        <div class="rc-title">Protein Folding</div>
+        <p class="rc-desc">The protein folding remains one of biology's deepest questions. We combine single-molecule experiments and computational simulations to map energy landscapes and intermediate states in topologically complex proteins.</p>
+      </div>
+      <div class="research-card reveal reveal-delay-2">
+        <svg class="rc-icon" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <defs><linearGradient id="rg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#2a5abf"/><stop offset="100%" stop-color="#c8a96e"/></linearGradient></defs>
+          <circle cx="32" cy="32" r="28" fill="none" stroke="url(#rg1)" stroke-width="2" opacity=".3"/>
+          <path d="M32 12C46 12,56 22,52 34C48 46,32 52,22 46C12 40,10 26,20 18C26 13,30 15,32 12Z" fill="none" stroke="#2a5abf" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="22" cy="24" r="4" fill="#c8a96e" opacity=".8"/>
+          <circle cx="42" cy="40" r="4" fill="#c8a96e" opacity=".8"/>
+        </svg>
+        <div class="rc-num">02 — Topology</div>
+        <div class="rc-title">Knotted Proteins</div>
+        <p class="rc-desc">We study how and why proteins adopt knotted backbones — one of nature's most surprising topological feats. Using molecular dynamics simulations, we characterise knotting pathways, stability, and functional relevance across diverse protein families.</p>
+      </div>
+     <div class="research-card reveal reveal-delay-3">
+        <svg class="rc-icon" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <defs><linearGradient id="rg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1e4096"/><stop offset="100%" stop-color="#5580d4"/></linearGradient></defs>
+          <path d="M14 16L50 16L38 36L38 52L26 52L26 36Z" fill="none" stroke="url(#rg2)" stroke-width="2.5" stroke-linejoin="round"/>
+          <line x1="22" y1="26" x2="42" y2="26" stroke="#5580d4" stroke-width="1.5" opacity=".5"/>
+          <line x1="26" y1="33" x2="38" y2="33" stroke="#5580d4" stroke-width="1.5" opacity=".5"/>
+          <circle cx="32" cy="44" r="4" fill="#1e4096" stroke="#5580d4" stroke-width="1.5"/>
+        </svg>
+        <div class="rc-num">03 — Proteostasis</div>
+        <div class="rc-title">Protein Degradation</div>
+        <p class="rc-desc">We dissect the mechanisms by which the proteasome and AAA+ unfoldases handle topologically complex substrates. Understanding, in vitro, how the cell dismantles knotted proteins has direct implications for neurodegenerative diseases and cancer.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="projects">
+  <div class="container">
+    <p class="section-label reveal">Active Projects</p>
+    <h2 class="section-title reveal">Current Research<br>Initiatives</h2>
+    <div class="divider reveal"></div>
+    <p class="section-subtitle reveal">From ERC-funded curiosity-driven research to applied collaborations with biotech partners, our projects cover the full spectrum.</p>
+    <div class="projects-grid">
+      <div class="project-card reveal reveal-delay-1">
+        <div class="project-tag">ERC Starting Grant</div>
+        <div class="project-title">Knot-Ome: Proteome-wide Mapping of Knotted Topologies</div>
+        <p class="project-desc">A systematic computational and experimental survey of all knotted proteins in eukaryotic proteomes. We are building a curated database and developing AI-assisted topology classifiers to guide wet-lab validation.</p>
+        <div class="project-footer"><span>2022–2027 · PI: Prof. A. García</span><a href="#" class="project-link">Details →</a></div>
+      </div>
+      <div class="project-card reveal reveal-delay-2">
+        <div class="project-tag">Collaborative Grant</div>
+        <div class="project-title">Proteasome Engagement with Topologically Complex Substrates</div>
+        <p class="project-desc">In partnership with the structural biology department, we use cryo-EM to capture snapshots of the proteasome during attempted unfolding of deeply knotted substrates, revealing stalling and bypass mechanisms.</p>
+        <div class="project-footer"><span>2023–2026 · Co-PI: Dr. B. Ferreira</span><a href="#" class="project-link">Details →</a></div>
+      </div>
+      <div class="project-card reveal reveal-delay-3">
+        <div class="project-tag">National Funding</div>
+        <div class="project-title">Energy Landscape Topology in Chaperone-Assisted Folding</div>
+        <p class="project-desc">We investigate how chaperones such as GroEL/GroES modulate the folding routes available to knotted clients, using single-molecule optical tweezers and all-atom simulations in parallel.</p>
+        <div class="project-footer"><span>2021–2025 · PI: Dr. C. Martins</span><a href="#" class="project-link">Details →</a></div>
+      </div>
+      <div class="project-card reveal reveal-delay-4">
+        <div class="project-tag">Industry Partnership</div>
+        <div class="project-title">Designing Knot-Stabilised Therapeutic Peptides</div>
+        <p class="project-desc">Working with a pharmaceutical partner, we leverage knotted architectures to engineer peptide therapeutics with superior protease resistance and extended plasma half-lives.</p>
+        <div class="project-footer"><span>2024–2026 · Confidential Partner</span><a href="#" class="project-link">Details →</a></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="group">
+  <div class="container">
+    <p class="section-label reveal">Our People</p>
+    <h2 class="section-title reveal">The Research Group</h2>
+    <div class="divider reveal"></div>
+    <p class="section-subtitle reveal">A diverse, international team united by curiosity and rigour. Replace the SVG placeholders with real photos: add &lt;img src="photos/name.jpg" alt="Name"&gt; inside each .member-photo div.</p>
+    <div class="group-grid">
+      <div class="member-card reveal reveal-delay-1">
+        <div class="member-photo"><img src="photos/FernandoBruno.jpeg" alt="Fernando Bruno da Silva" /></div>
+        <div class="member-body"><div class="member-name">Dr. Fernando Bruno da Silva</div><div class="member-role">Principal Investigator</div><p class="member-desc">NCN grantee. Expert in molecular topology and protein biophysics. PhD from UNESP - Brazil.</p></div>
+      </div>
+      <div class="member-card reveal reveal-delay-3">
+        <div class="member-photo"><svg width="72" height="72" viewBox="0 0 80 80"><circle cx="40" cy="30" r="18" fill="#c8a96e"/><ellipse cx="40" cy="65" rx="24" ry="16" fill="#a8895a"/></svg></div>
+        <div class="member-body"><div class="member-name">Agata Trębacz</div><div class="member-role">Student Assistant</div><p class="member-desc">Bachelor student, Biophysics, University of Warsaw</p></div>
+      </div>
+      <div class="member-card reveal reveal-delay-4">
+        <div class="member-photo"><svg width="72" height="72" viewBox="0 0 80 80"><circle cx="40" cy="30" r="18" fill="#1e4096"/><ellipse cx="40" cy="65" rx="24" ry="16" fill="#0d1640"/></svg></div>
+        <div class="member-body"><div class="member-name">Blanka Walerych</div><div class="member-role">Student Assistant</div><p class="member-desc">Bachelor student, Biotechnology, University of Warsaw.</p></div>
+      </div>
+      <div class="member-card reveal reveal-delay-4">
+        <div class="member-photo"><svg width="72" height="72" viewBox="0 0 80 80"><circle cx="40" cy="30" r="18" fill="#c8a96e"/><ellipse cx="40" cy="65" rx="24" ry="16" fill="#0d1640"/></svg></div>
+        <div class="member-body"><div class="member-name">Anna Hut</div><div class="member-role">Student Assistant</div><p class="member-desc">Bachelor student, Biology, University of Warsaw.</p></div>  
+      </div>
+      <div class="member-card reveal reveal-delay-4">
+        <div class="member-photo"><svg width="72" height="72" viewBox="0 0 80 80"><circle cx="40" cy="30" r="18" fill="#1e4096"/><ellipse cx="40" cy="65" rx="24" ry="16" fill="#0d1640"/></svg></div>
+        <div class="member-body"><div class="member-name">Marcin Łukawski</div><div class="member-role">Student Assistant</div><p class="member-desc">Bachelor student, Chemistry, University of Warsaw.</p></div>  
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="publications">
+  <div class="container">
+    <p class="section-label reveal">Selected Works</p>
+    <h2 class="section-title reveal">Publications</h2>
+    <div class="divider reveal"></div>
+    <p class="section-subtitle reveal">A selection of our key publications. For the full list, see our <a href="https://scholar.google.com/citations?user=DVMR2-4AAAAJ&hl=en" style="color:var(--navy-400);margin-right:16px" target="_blank" rel="noopener">Google Scholar</a>.</p>
+    <div class="pub-list">
+      <div class="pub-item reveal">
+        <div class="pub-year">2026</div>
+        <div>
+          <div class="pub-title">Novel Knotted Solenoid fold with order-shifted coil arrangement leads to non-trivial 31 topology</div>
+          <div class="pub-authors">Maciej Sikora, Mariusz Mozajew, Julia A. Sikorska, Fernando Bruno da Silva, Agata P. Perlinska, Anna Kluza, Szymon
+Niewieczerzal, Maciej Lukaszewicz, Beata Wielgus-Kutrowska, Karolina Stachurska-Korzeniowska, Sophie E. Jackson,
+and Joanna I. Sulkowska</div>
+          <div class="pub-journal">PNAS</div>
+          <a href="#" class="pub-doi">Accepted for publication →</a>
+        </div>
+        <span class="pub-badge">Research Article</span>
+      </div>
+      <div class="pub-item reveal">
+        <div class="pub-year">2025</div>
+        <div>
+          <div class="pub-title">Multi-barrier unfolding of the double-knotted protein, TrmD–Tm1570, revealed by single-molecule force spectroscopy and molecular dynamics</div>
+          <div class="pub-authors">F Bruno da Silva, S Niewieczerzal, I Lewandowska, M Fortunka, M Sikora, L Silbermann, K Tych, JI Sulkowska</div>
+          <div class="pub-journal">eLife</div>
+          <a href="https://doi.org/10.7554/eLife.108823.1" class="pub-doi">doi: 10.7554/eLife.108823.1 →</a>
+        </div>
+        <span class="pub-badge">Research Article</span>
+      </div>
+      <div class="pub-item reveal">
+        <div class="pub-year">2025</div>
+        <div>
+          <div class="pub-title">AlphaLasso—a web server to identify loop and lasso motifs in 3D structure of biopolymers</div>
+          <div class="pub-authors">Pawel Rubach, Jacek Płonka, Bartosz A Gren, Fernando Bruno da Silva, Marta Korpacz, Joanna I Sulkowska</div>
+          <div class="pub-journal">Nucleic Acids Research</div>
+          <a href="https://doi.org/10.1093/nar/gkaf375" class="pub-doi">doi: 10.1093/nar/gkaf375 →</a>
+        </div>
+        <span class="pub-badge">Research Article</span>
+      </div>
+      <div class="pub-item reveal">
+        <div class="pub-year">2025</div>
+        <div>
+          <div class="pub-title">Universe of Lasso Proteins: Exploring the Limit of Entanglement of Proteins Predicted by AlphaFold</div>
+          <div class="pub-authors">Fernando Bruno da Silva, Agata P Perlinska, Jacek Płonka, Erica Flapan, Joanna I Sulkowska</div>
+          <div class="pub-journal">Journal of Molecular Biology</div>
+          <a href="https://doi.org/10.1016/j.jmb.2025.169217" class="pub-doi">doi: 10.1016/j.jmb.2025.169217 →</a>
+        </div>
+        <span class="pub-badge">Research Article</span>
+      </div>
+      <div class="pub-item reveal">
+        <div class="pub-year">2024</div>
+        <div>
+          <div class="pub-title">Exploring the molecular pathways of the activation process in PPARγ recurrent bladder cancer mutants</div>
+          <div class="pub-authors">Vinícius M de Oliveira, Caique C Malospirito, Fernando B da Silva, Natália B Videira, Marieli MG Dias, Murilo N Sanches, Vitor BP Leite, Ana Carolina M Figueira</div>
+          <div class="pub-journal">The Journal of Chemical Physics</div>
+          <a href="https://doi.org/10.1063/5.0232041" class="pub-doi">doi: 10.1063/5.0232041 →</a>
+        </div>
+        <span class="pub-badge">Research Article</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="contact">
+  <div class="container">
+    <p class="section-label reveal">Get in Touch</p>
+    <h2 class="section-title reveal">Contact Us</h2>
+    <div class="divider reveal"></div>
+    <div class="contact-grid">
+      <div class="contact-info">
+        <div class="contact-block reveal">
+          <div class="contact-block-label">Address</div>
+          <div class="contact-block-val">FBS Lab — Folding, Binding &amp; Stability<br>Centre of New Technologies – University of Warsaw<br>Stefana Banacha Street, 2c<br>02-097 Warsaw, Poland</div>
+        </div>
+        <div class="contact-block reveal">
+          <div class="contact-block-label">Email</div>
+          <div class="contact-block-val"><a href="mailto:f.bruno@cent.uw.edu.pl" style="color:var(--navy-500)">Contact me</span></a></div>
+        </div>
+        <div class="contact-block reveal">
+          <div class="contact-block-label">Social &amp; Profiles</div>
+          <div class="contact-block-val">
+            <a href="https://scholar.google.com/citations?user=DVMR2-4AAAAJ&hl=en" style="color:var(--navy-500);margin-right:16px" target="_blank" rel="noopener">Google Scholar</a>
+            <a href="https://orcid.org/0000-0002-0285-8700" style="color:var(--navy-500)" target="_blank" rel="noopener">ORCID</a>
+          </div>
+        </div>
+      </div>
+      <div class="reveal">
+        <div class="map-placeholder">
+          <!-- Replace src with your Google Maps embed URL -->
+          <!-- Go to maps.google.com → your location → Share → Embed a map → copy the iframe src -->
+          <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2444.7375197815795!2d20.98160697667721!3d52.21181727198192!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x471eccba2b98cdc7%3A0x9f595c64c0f7d373!2sCentrum%20Nowych%20Technologii%20Uniwersytetu%20Warszawskiego!5e0!3m2!1sen!2spl!4v1774816861154!5m2!1sen!2spl" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="vacancies">
+  <div class="container">
+    <p class="section-label reveal">Join the Lab</p>
+    <h2 class="section-title reveal">Open Positions</h2>
+    <div class="divider reveal"></div>
+    <p class="section-subtitle reveal">We are always looking for talented, motivated scientists. We value diversity and strongly encourage applications from under-represented groups in STEM.</p>
+    <div class="vacancy-list">
+      <div class="vacancy-card reveal">
+        <div>
+          <div class="vacancy-title">PhD Position — Protein Topology and Degradation</div>
+          <div class="vacancy-meta">Full time · 4-year fellowship · Starting Fall 2026</div>
+          <span class="vacancy-tag">Biophysics</span>
+          <span class="vacancy-tag" style="margin-left:6px">PhD</span>
+        </div>
+        <a href="https://www.uw.edu.pl/wp-content/uploads/2026/01/cent-06-2026-phd-student-opus-29-f.bruno-da-silva_eng.pdf" class="btn-navy" target="_blank" rel="noopener">Apply Now</a>
+      </div>
+      <div class="vacancy-card reveal">
+        <div>
+          <div class="vacancy-title">Undergraduate Research</div>
+          <div class="vacancy-meta">Part-time · Bioinfomatics | Compuational Modelling | Structural Biology</div>
+          <span class="vacancy-tag">Undergraduate</span>
+          <span class="vacancy-tag" style="margin-left:6px">Interniship</span>
+        </div>
+        <a href="mailto:f.bruno@cent.uw.edu.pl" class="btn-navy">Apply Now</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div>
+      <div class="footer-logo">FBS<span>Lab</span></div>
+      <div style="font-size:.78rem;margin-top:6px;color:var(--navy-300)">Folding, Binding &amp; Stability · Centre of New Technologies</div>
+    </div>
+    <div class="footer-copy">&#169; 2026 FBS Lab. All rights reserved.</div>
+  </div>
+</footer>
+
+<script>
+/* ════════════════════════════════════════════════════
+   KNOT TOPOLOGY ANIMATION — 0₁, 3₁, 4₁, 5₂, 6₂
+   Parametric 3-D curves projected to 2-D.
+   Over/under resolved by z-depth at each crossing.
+   4₁ and 6₂ use a fixed canonical projection angle
+   so their crossing counts stay correct; 0₁, 3₁, 5₂
+   gently rotate.
+════════════════════════════════════════════════════ */
+(function(){
+  const canvas = document.getElementById('knotCanvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = 420, H = 420, CX = W/2, CY = H/2;
+  const PI2 = Math.PI * 2;
+  const N = 600;
+
+  const C = {
+    over  : '#a8bcec',
+    under : '#1e4096',
+    cross : '#c8a96e',
+    bg    : '#0a0f2e'
+  };
+
+  // ── Sample a parametric function ─────────────────
+  function knotPoints(fn, n){
+    const pts = [];
+    for(let i=0;i<n;i++) pts.push(fn(i/n*PI2));
+    return pts;
+  }
+
+  // ── Normalise to [-1,1] in xy ─────────────────────
+  function normalise(pts){
+    let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+    pts.forEach(p=>{x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);
+                    y0=Math.min(y0,p.y);y1=Math.max(y1,p.y);});
+    const sc = 1.8/Math.max(x1-x0,y1-y0);
+    const ox=(x0+x1)/2, oy=(y0+y1)/2;
+    return pts.map(p=>({x:(p.x-ox)*sc, y:(p.y-oy)*sc, z:p.z}));
+  }
+
+  // ── Rotate about Z then tilt about X ─────────────
+  function rotateZX(pts, az, ax){
+    const cz=Math.cos(az),sz=Math.sin(az);
+    const cx=Math.cos(ax),sx=Math.sin(ax);
+    return pts.map(p=>{
+      const x = p.x*cz - p.y*sz;
+      const y = p.x*sz + p.y*cz;
+      const z = p.z;
+      return { x, y: y*cx - z*sx, z: y*sx + z*cx };
+    });
+  }
+
+  // ─────────────────────────────────────────────────
+  // KNOT PARAMETRISATIONS
+  // ─────────────────────────────────────────────────
+
+  // 0₁  Unknot — plain circle in xy plane, z=0 always
+  // → no crossings at any projection angle
+  function unknot(t){
+    return { x: Math.cos(t), y: Math.sin(t), z: 0 };
+  }
+
+  // 3₁  Trefoil T(2,3) — standard torus knot
+  // Good at default projection; gentle rotation keeps it pretty
+  function trefoil(t){
+    const r = 0.8 + 0.36*Math.cos(3*t);
+    return { x: r*Math.cos(2*t), y: r*Math.sin(2*t), z: 0.36*Math.sin(3*t) };
+  }
+
+  // 5₂  Three-twist knot — kept identical to original
+  function fiveTwoKnot(t){
+    const r = 0.75 + 0.3*Math.cos(5*t);
+    return { x: r*Math.cos(2*t), y: r*Math.sin(2*t), z: 0.3*Math.sin(5*t) };
+  }
+
+  // ─────────────────────────────────────────────────
+  // Build knot data
+  // fixedView: true → points already pre-rotated to
+  //            canonical view; no live rotation applied
+  // ─────────────────────────────────────────────────
+  const KNOTS = [
+    { fn: unknot,      label: '0₁', name: 'Unknot',           fixedView: false },
+    { fn: trefoil,     label: '3₁', name: 'Trefoil Knot',     fixedView: false },
+    { fn: fiveTwoKnot, label: '5₁', name: 'Cinquefoil Knot', fixedView: false },
+  ];
+
+  const knotData = KNOTS.map(k=>{
+    let pts = normalise(knotPoints(k.fn, N));
+    if(k.fixedView) pts = rotateZX(pts, k.preAz||0, k.preAx||0);
+    return { ...k, pts };
+  });
+
+  // ── Lerp between two point arrays ────────────────
+  function lerpPts(a, b, t){
+    return a.map((p,i)=>({
+      x: p.x*(1-t)+b[i].x*t,
+      y: p.y*(1-t)+b[i].y*t,
+      z: p.z*(1-t)+b[i].z*t,
+    }));
+  }
+
+  // ── Project 3D → canvas 2D ────────────────────────
+  const SCALE = 165;
+  function proj(p){ return { sx: CX+p.x*SCALE, sy: CY+p.y*SCALE, z: p.z }; }
+
+  // ── Segment intersection ──────────────────────────
+  function segIntersect(ax,ay,bx,by,cx,cy,dx,dy){
+    const d1x=bx-ax,d1y=by-ay,d2x=dx-cx,d2y=dy-cy;
+    const denom=d1x*d2y-d1y*d2x;
+    if(Math.abs(denom)<1e-9) return null;
+    const t=((cx-ax)*d2y-(cy-ay)*d2x)/denom;
+    const u=((cx-ax)*d1y-(cy-ay)*d1x)/denom;
+    if(t>0.02&&t<0.98&&u>0.02&&u<0.98)
+      return {t,u,x:ax+t*d1x,y:ay+t*d1y};
+    return null;
+  }
+
+  // ── Draw one frame ────────────────────────────────
+  function drawKnot(pts){
+    const pp = pts.map(proj);
+    const n  = pts.length;
+
+    ctx.clearRect(0,0,W,H);
+
+    // Radial glow
+    const grd = ctx.createRadialGradient(CX,CY,30,CX,CY,200);
+    grd.addColorStop(0,'rgba(42,90,191,0.10)');
+    grd.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
+
+    // Find crossings
+    const step=4, crossings=[];
+    for(let i=0;i<n;i+=step){
+      const i2=(i+step)%n;
+      const ax=pp[i].sx,ay=pp[i].sy,bx=pp[i2].sx,by=pp[i2].sy;
+      for(let j=i+step*3;j<i+n-step*2;j+=step){
+        const j1=j%n,j2=(j+step)%n;
+        const hit=segIntersect(ax,ay,bx,by,pp[j1].sx,pp[j1].sy,pp[j2].sx,pp[j2].sy);
+        if(hit){
+          const zi=pts[i].z*(1-hit.t)+pts[i2].z*hit.t;
+          const zj=pts[j1].z*(1-hit.u)+pts[j2].z*hit.u;
+          crossings.push({x:hit.x,y:hit.y,i,j:j1,overI:zi>zj});
+        }
+      }
+    }
+
+    // Break set (under-strand gaps)
+    const breakSegs=new Set();
+    const GAP=8;
+    crossings.forEach(c=>{
+      const u=c.overI?c.j:c.i;
+      for(let g=-GAP;g<=GAP;g++) breakSegs.add((u+g+n)%n);
+    });
+
+    ctx.lineCap='round'; ctx.lineJoin='round';
+
+    // Pass 1: dim under-strand
+    ctx.strokeStyle=C.under; ctx.lineWidth=2; ctx.globalAlpha=0.55;
+    let inPath=false;
+    for(let i=0;i<n;i++){
+      const p=pp[i],q=pp[(i+1)%n];
+      if(!breakSegs.has(i)){
+        if(!inPath){ctx.beginPath();ctx.moveTo(p.sx,p.sy);inPath=true;}
+        ctx.lineTo(q.sx,q.sy);
+      } else { if(inPath){ctx.stroke();inPath=false;} }
+    }
+    if(inPath) ctx.stroke();
+
+    // Pass 2: background gap (erase under-strand at crossings)
+    ctx.strokeStyle=C.bg; ctx.lineWidth=9; ctx.globalAlpha=1;
+    inPath=false;
+    for(let i=0;i<n;i++){
+      const p=pp[i],q=pp[(i+1)%n];
+      if(breakSegs.has(i)){
+        if(!inPath){ctx.beginPath();ctx.moveTo(p.sx,p.sy);inPath=true;}
+        ctx.lineTo(q.sx,q.sy);
+      } else { if(inPath){ctx.stroke();inPath=false;} }
+    }
+    if(inPath) ctx.stroke();
+
+    // Pass 3: bright over-strand with z-depth colour
+    ctx.globalAlpha=0.9;
+    for(let i=0;i<n;i++){
+      if(breakSegs.has(i)) continue;
+      const p=pp[i],q=pp[(i+1)%n];
+      const zn=Math.max(0,Math.min(1,(pts[i].z+1)/2));
+      const r=Math.round(85+(200-85)*zn);
+      const g=Math.round(128+(188-128)*zn);
+      const b=Math.round(212+(236-212)*zn);
+      ctx.strokeStyle=`rgb(${r},${g},${b})`;
+      ctx.lineWidth=1.8+zn*1.2;
+      ctx.beginPath();ctx.moveTo(p.sx,p.sy);ctx.lineTo(q.sx,q.sy);ctx.stroke();
+    }
+
+    // Pass 4: crossing dots
+    crossings.forEach(c=>{
+      ctx.beginPath();ctx.arc(c.x,c.y,4,0,PI2);
+      ctx.fillStyle=C.cross;ctx.globalAlpha=0.85;ctx.fill();
+    });
+
+    ctx.globalAlpha=1;
+  }
+
+  // ── Animation state ───────────────────────────────
+  let currentIdx=0, targetIdx=0;
+  let morphT=1, holdTimer=0;
+  const HOLD_MS=3200, MORPH_MS=1400;
+  let lastTime=null, phase='hold';
+  let slowRotAngle=0;
+  let labelAlpha=1, labelFading=false;
+
+  function updateLabel(idx){
+    const el1=document.getElementById('knotNameSub');
+    const el2=document.getElementById('knotNameMain');
+    if(el1) el1.innerHTML=KNOTS[idx].label
+      .replace('₁','<sub>1</sub>')
+      .replace('₂','<sub>2</sub>');
+    if(el2) el2.textContent=KNOTS[idx].name;
+    document.querySelectorAll('.kdot')
+      .forEach((d,i)=>d.classList.toggle('active',i===idx));
+  }
+
+  function easeInOut(t){ return t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2; }
+
+  // Apply live rotation only to knots without fixedView
+  function maybeRotate(kIdx, pts){
+    if(knotData[kIdx].fixedView) return pts;
+    return pts.map(p=>({
+      x: p.x*Math.cos(slowRotAngle)-p.y*Math.sin(slowRotAngle),
+      y: p.x*Math.sin(slowRotAngle)+p.y*Math.cos(slowRotAngle),
+      z: p.z
+    }));
+  }
+
+  function loop(ts){
+    if(!lastTime) lastTime=ts;
+    const dt=Math.min(ts-lastTime,100); lastTime=ts;
+    slowRotAngle+=dt*0.0009;
+
+    if(phase==='hold'){
+      holdTimer+=dt;
+      labelAlpha=Math.min(1,labelAlpha+dt/300);
+      drawKnot(maybeRotate(currentIdx, knotData[currentIdx].pts));
+      if(holdTimer>=HOLD_MS){
+        holdTimer=0;
+        targetIdx=(currentIdx+1)%KNOTS.length;
+        morphT=0; phase='morph'; labelAlpha=1; labelFading=true;
+      }
+    } else {
+      morphT+=dt/MORPH_MS;
+      if(morphT>=1){
+        morphT=1; currentIdx=targetIdx; phase='hold';
+        labelFading=false; labelAlpha=0; updateLabel(currentIdx);
+      }
+      const e=easeInOut(Math.min(morphT,1));
+      const rA=maybeRotate(currentIdx, knotData[currentIdx].pts);
+      const rB=maybeRotate(targetIdx,  knotData[targetIdx].pts);
+      drawKnot(lerpPts(rA,rB,e));
+      if(labelFading) labelAlpha=Math.max(0,1-morphT*2);
+    }
+
+    const el1=document.getElementById('knotNameSub');
+    const el2=document.getElementById('knotNameMain');
+    if(el1) el1.style.opacity=labelAlpha;
+    if(el2) el2.style.opacity=labelAlpha;
+
+    requestAnimationFrame(loop);
+  }
+
+  window.knotJumpTo=function(idx){
+    if(idx===currentIdx&&phase==='hold') return;
+    targetIdx=idx; morphT=0; phase='morph'; holdTimer=0; labelFading=true;
+  };
+
+  updateLabel(0);
+  requestAnimationFrame(loop);
+})();
+
+/* ════════════════════════════════════════════════════
+   PAGE SWITCHING
+════════════════════════════════════════════════════ */
+function showPage(id, clickedLink) {
+  document.querySelectorAll('section').forEach(s => s.classList.remove('page-active'));
+  const target = document.getElementById(id);
+  if (target) {
+    target.classList.add('page-active');
+    target.scrollTop = 0;
+    target.querySelectorAll('.reveal').forEach(el => {
+      el.classList.remove('visible');
+      requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('visible')));
+    });
+  }
+  document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+  if (clickedLink) {
+    clickedLink.classList.add('active');
+  } else {
+    const match = document.querySelector(`.nav-links a[data-target="${id}"]`);
+    if (match) match.classList.add('active');
+  }
+  document.getElementById('navLinks').classList.remove('open');
+}
+
+const navbar = document.getElementById('navbar');
+window.addEventListener('scroll', () => {
+  navbar.classList.toggle('scrolled', window.scrollY > 10);
+});
+document.querySelectorAll('section').forEach(s => {
+  s.addEventListener('scroll', () => {
+    navbar.classList.toggle('scrolled', s.scrollTop > 10);
+  });
+});
+
+function toggleMenu() {
+  document.getElementById('navLinks').classList.toggle('open');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  showPage('home');
+});
+</script>
+</body>
+</html>
